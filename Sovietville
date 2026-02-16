@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 
 public class SovietVille {
 
-    // Home Supplies 
+    // Home Devices
 
     private static final double FRIDGE_COST = 1.5;
     private static final double STOVE_COST = 1.2;
