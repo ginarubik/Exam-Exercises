@@ -1,24 +1,34 @@
 import java.util.*;
 import java.util.regex.Matcher;
+import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
-public class SovietVille {
-
-    // Home Devices
-
-    private static final double FRIDGE_COST = 1.5;
-    private static final double STOVE_COST = 1.2;
-    private static final double TV_COST = 1.0;
-    private static final double COMPUTER_COST = 0.7;
-
-    // Main
+public class Main {
 
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        City city = new City();
-        int commandCounter = 0;
+        Engine engine = new Engine();
+        engine.run();
+    }
+}
 
+// =======================================================
+// ======================== ENGINE =======================
+// =======================================================
+
+class Engine {
+
+    private final Scanner scanner;
+    private final SovietVille.City city;
+    private int commandCounter;
+
+    public Engine() {
+        this.scanner = new Scanner(System.in);
+        this.city = new SovietVille.City();
+        this.commandCounter = 0;
+    }
+
+    public void run() {
         while (true) {
             String input = scanner.nextLine().trim();
 
@@ -40,8 +50,20 @@ public class SovietVille {
             }
         }
     }
+}
 
-    // City 
+// =======================================================
+// ===================== SOVIETVILLE =====================
+// =======================================================
+
+class SovietVille {
+
+    static final double FRIDGE_COST = 1.5;
+    static final double STOVE_COST = 1.2;
+    static final double TV_COST = 1.0;
+    static final double COMPUTER_COST = 0.7;
+
+    // ======================== CITY ========================
 
     static class City {
 
@@ -105,13 +127,18 @@ public class SovietVille {
                 throw new IllegalArgumentException("Invalid family format");
 
             String[] salaries = matcher.group(1).split(",\\s*");
+
             if (salaries.length != 2)
                 throw new IllegalArgumentException("Invalid salaries count");
 
+            double s1 = Double.parseDouble(salaries[0]);
+            double s2 = Double.parseDouble(salaries[1]);
+
+            if (s1 < 0 || s2 < 0)
+                throw new IllegalArgumentException("Negative salary not allowed");
+
             YoungCoupleWithChildren home =
-                    new YoungCoupleWithChildren(
-                            Double.parseDouble(salaries[0]),
-                            Double.parseDouble(salaries[1]));
+                    new YoungCoupleWithChildren(s1, s2);
 
             Pattern childPattern = Pattern.compile("Child\\(([^)]+)\\)");
             Matcher childMatcher = childPattern.matcher(input);
@@ -119,14 +146,14 @@ public class SovietVille {
             while (childMatcher.find()) {
                 String[] parts = childMatcher.group(1).split(",\\s*");
 
-                if (parts.length < 1)
-                    throw new IllegalArgumentException("Invalid child format");
-
                 double food = Double.parseDouble(parts[0]);
                 List<Double> toys = new ArrayList<>();
 
                 for (int i = 1; i < parts.length; i++) {
-                    toys.add(Double.parseDouble(parts[i]));
+                    double toy = Double.parseDouble(parts[i]);
+                    if (toy < 0)
+                        throw new IllegalArgumentException("Toy cost negative");
+                    toys.add(toy);
                 }
 
                 home.addChild(new Child(food, toys));
@@ -136,6 +163,7 @@ public class SovietVille {
         }
 
         private double[] extractDoubles(String input, int expectedCount) {
+
             String inside = input.substring(
                     input.indexOf("(") + 1,
                     input.lastIndexOf(")")
@@ -185,7 +213,7 @@ public class SovietVille {
         }
     }
 
-    // Home
+    // ======================== HOME ========================
 
     static abstract class Home {
 
@@ -226,7 +254,7 @@ public class SovietVille {
         abstract int getPopulation();
     }
 
-    // Home Types
+    // ================= HOME TYPES =================
 
     static class YoungCouple extends Home {
         public YoungCouple(double s1, double s2) {
@@ -330,15 +358,22 @@ public class SovietVille {
     }
 
     static class Child {
+
         private final double foodCost;
         private final double toysCost;
 
         public Child(double foodCost, List<Double> toys) {
+
             if (foodCost < 0)
                 throw new IllegalArgumentException("Food cost negative");
 
             this.foodCost = foodCost;
+
             this.toysCost = toys.stream()
+                    .peek(t -> {
+                        if (t < 0)
+                            throw new IllegalArgumentException("Toy cost negative");
+                    })
                     .mapToDouble(Double::doubleValue)
                     .sum();
         }
@@ -349,7 +384,9 @@ public class SovietVille {
     }
 }
 
-// Unit Tests
+// =======================================================
+// ===================== UNIT TESTS ======================
+// =======================================================
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -361,8 +398,7 @@ class SovietVilleTests {
         SovietVille.YoungCouple home =
                 new SovietVille.YoungCouple(100, 100);
 
-        double expected =
-                40 + 1.0 + 1.5 + 1.4;
+        double expected = 40 + 1.0 + 1.5 + 1.4;
 
         assertEquals(expected,
                 home.getMonthlyConsumption(),
