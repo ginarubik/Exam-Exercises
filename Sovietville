@@ -1,0 +1,406 @@
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+
+public class SovietVille {
+
+    // Home Supplies 
+
+    private static final double FRIDGE_COST = 1.5;
+    private static final double STOVE_COST = 1.2;
+    private static final double TV_COST = 1.0;
+    private static final double COMPUTER_COST = 0.7;
+
+    // Main
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        City city = new City();
+        int commandCounter = 0;
+
+        while (true) {
+            String input = scanner.nextLine().trim();
+
+            if (input.equalsIgnoreCase("quit")) {
+                System.out.println("Total population: " + city.getTotalPopulation());
+                break;
+            }
+
+            try {
+                city.processCommand(input);
+                commandCounter++;
+
+                if (commandCounter % 4 == 0) {
+                    city.payIncomes();
+                }
+
+            } catch (IllegalArgumentException ex) {
+                System.out.println("Invalid command: " + ex.getMessage());
+            }
+        }
+    }
+
+    // City 
+
+    static class City {
+
+        private final List<Home> homes = new ArrayList<>();
+
+        public void processCommand(String input) {
+
+            if (input.startsWith("YoungCoupleWithChildren")) {
+                homes.add(parseYoungCoupleWithChildren(input));
+            }
+            else if (input.startsWith("YoungCouple(")) {
+                homes.add(parseYoungCouple(input));
+            }
+            else if (input.startsWith("YoungSingle(")) {
+                homes.add(parseYoungSingle(input));
+            }
+            else if (input.startsWith("OldCouple(")) {
+                homes.add(parseOldCouple(input));
+            }
+            else if (input.startsWith("OldSingle(")) {
+                homes.add(parseOldSingle(input));
+            }
+            else if (input.equals("status")) {
+                printStatus();
+            }
+            else if (input.equals("bills")) {
+                payBills();
+            }
+            else {
+                throw new IllegalArgumentException("Unknown command");
+            }
+        }
+
+        private YoungCouple parseYoungCouple(String input) {
+            double[] values = extractDoubles(input, 2);
+            return new YoungCouple(values[0], values[1]);
+        }
+
+        private YoungSingle parseYoungSingle(String input) {
+            double[] values = extractDoubles(input, 1);
+            return new YoungSingle(values[0]);
+        }
+
+        private OldCouple parseOldCouple(String input) {
+            double[] values = extractDoubles(input, 2);
+            return new OldCouple(values[0], values[1]);
+        }
+
+        private OldSingle parseOldSingle(String input) {
+            double[] values = extractDoubles(input, 1);
+            return new OldSingle(values[0]);
+        }
+
+        private YoungCoupleWithChildren parseYoungCoupleWithChildren(String input) {
+
+            Pattern couplePattern =
+                    Pattern.compile("YoungCoupleWithChildren\\(([^)]+)\\)");
+            Matcher matcher = couplePattern.matcher(input);
+
+            if (!matcher.find())
+                throw new IllegalArgumentException("Invalid family format");
+
+            String[] salaries = matcher.group(1).split(",\\s*");
+            if (salaries.length != 2)
+                throw new IllegalArgumentException("Invalid salaries count");
+
+            YoungCoupleWithChildren home =
+                    new YoungCoupleWithChildren(
+                            Double.parseDouble(salaries[0]),
+                            Double.parseDouble(salaries[1]));
+
+            Pattern childPattern = Pattern.compile("Child\\(([^)]+)\\)");
+            Matcher childMatcher = childPattern.matcher(input);
+
+            while (childMatcher.find()) {
+                String[] parts = childMatcher.group(1).split(",\\s*");
+
+                if (parts.length < 1)
+                    throw new IllegalArgumentException("Invalid child format");
+
+                double food = Double.parseDouble(parts[0]);
+                List<Double> toys = new ArrayList<>();
+
+                for (int i = 1; i < parts.length; i++) {
+                    toys.add(Double.parseDouble(parts[i]));
+                }
+
+                home.addChild(new Child(food, toys));
+            }
+
+            return home;
+        }
+
+        private double[] extractDoubles(String input, int expectedCount) {
+            String inside = input.substring(
+                    input.indexOf("(") + 1,
+                    input.lastIndexOf(")")
+            );
+
+            String[] parts = inside.split(",\\s*");
+
+            if (parts.length != expectedCount)
+                throw new IllegalArgumentException("Wrong parameter count");
+
+            double[] result = new double[expectedCount];
+
+            for (int i = 0; i < parts.length; i++) {
+                result[i] = Double.parseDouble(parts[i]);
+                if (result[i] < 0)
+                    throw new IllegalArgumentException("Negative values not allowed");
+            }
+
+            return result;
+        }
+
+        public void payIncomes() {
+            homes.forEach(Home::receiveIncome);
+        }
+
+        public void payBills() {
+            Iterator<Home> iterator = homes.iterator();
+            while (iterator.hasNext()) {
+                if (!iterator.next().payBills()) {
+                    iterator.remove();
+                }
+            }
+        }
+
+        public void printStatus() {
+            double total = homes.stream()
+                    .mapToDouble(Home::getMonthlyConsumption)
+                    .sum();
+
+            System.out.printf("Total consumption: %.2f%n", total);
+        }
+
+        public int getTotalPopulation() {
+            return homes.stream()
+                    .mapToInt(Home::getPopulation)
+                    .sum();
+        }
+    }
+
+    // Home
+
+    static abstract class Home {
+
+        private final double income;
+        private double budget;
+        private final int rooms;
+        private final double roomCost;
+
+        protected Home(double income, int rooms, double roomCost) {
+            this.income = income;
+            this.rooms = rooms;
+            this.roomCost = roomCost;
+            this.budget = 0;
+        }
+
+        protected double getRoomsCost() {
+            return rooms * roomCost;
+        }
+
+        public void receiveIncome() {
+            budget += income;
+        }
+
+        public boolean payBills() {
+            double monthly = getMonthlyConsumption();
+            if (budget >= monthly) {
+                budget -= monthly;
+                return true;
+            }
+            return false;
+        }
+
+        public double getBudget() {
+            return budget;
+        }
+
+        abstract double getMonthlyConsumption();
+        abstract int getPopulation();
+    }
+
+    // Home Types
+
+    static class YoungCouple extends Home {
+        public YoungCouple(double s1, double s2) {
+            super(s1 + s2, 2, 20);
+        }
+
+        @Override
+        double getMonthlyConsumption() {
+            return getRoomsCost()
+                    + TV_COST
+                    + FRIDGE_COST
+                    + 2 * COMPUTER_COST;
+        }
+
+        @Override
+        int getPopulation() {
+            return 2;
+        }
+    }
+
+    static class YoungSingle extends Home {
+        public YoungSingle(double salary) {
+            super(salary, 1, 10);
+        }
+
+        @Override
+        double getMonthlyConsumption() {
+            return getRoomsCost() + COMPUTER_COST;
+        }
+
+        @Override
+        int getPopulation() {
+            return 1;
+        }
+    }
+
+    static class OldCouple extends Home {
+        public OldCouple(double p1, double p2) {
+            super(p1 + p2, 3, 15);
+        }
+
+        @Override
+        double getMonthlyConsumption() {
+            return getRoomsCost()
+                    + TV_COST
+                    + FRIDGE_COST
+                    + STOVE_COST;
+        }
+
+        @Override
+        int getPopulation() {
+            return 2;
+        }
+    }
+
+    static class OldSingle extends Home {
+        public OldSingle(double pension) {
+            super(pension, 1, 15);
+        }
+
+        @Override
+        double getMonthlyConsumption() {
+            return getRoomsCost() + STOVE_COST;
+        }
+
+        @Override
+        int getPopulation() {
+            return 1;
+        }
+    }
+
+    static class YoungCoupleWithChildren extends Home {
+
+        private final List<Child> children = new ArrayList<>();
+
+        public YoungCoupleWithChildren(double s1, double s2) {
+            super(s1 + s2, 2, 30);
+        }
+
+        public void addChild(Child child) {
+            children.add(child);
+        }
+
+        @Override
+        double getMonthlyConsumption() {
+            double childrenCost = children.stream()
+                    .mapToDouble(Child::getMonthlyCost)
+                    .sum();
+
+            return getRoomsCost()
+                    + TV_COST
+                    + FRIDGE_COST
+                    + 2 * COMPUTER_COST
+                    + childrenCost;
+        }
+
+        @Override
+        int getPopulation() {
+            return 2 + children.size();
+        }
+    }
+
+    static class Child {
+        private final double foodCost;
+        private final double toysCost;
+
+        public Child(double foodCost, List<Double> toys) {
+            if (foodCost < 0)
+                throw new IllegalArgumentException("Food cost negative");
+
+            this.foodCost = foodCost;
+            this.toysCost = toys.stream()
+                    .mapToDouble(Double::doubleValue)
+                    .sum();
+        }
+
+        public double getMonthlyCost() {
+            return foodCost + toysCost;
+        }
+    }
+}
+
+// Unit Tests
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+class SovietVilleTests {
+
+    @Test
+    void youngCoupleConsumptionCorrect() {
+        SovietVille.YoungCouple home =
+                new SovietVille.YoungCouple(100, 100);
+
+        double expected =
+                40 + 1.0 + 1.5 + 1.4;
+
+        assertEquals(expected,
+                home.getMonthlyConsumption(),
+                0.0001);
+    }
+
+    @Test
+    void childCostCorrect() {
+        SovietVille.Child child =
+                new SovietVille.Child(10,
+                        Arrays.asList(5.0, 5.0));
+
+        assertEquals(20,
+                child.getMonthlyCost(),
+                0.0001);
+    }
+
+    @Test
+    void budgetDecreasesAfterBills() {
+        SovietVille.YoungSingle home =
+                new SovietVille.YoungSingle(100);
+
+        home.receiveIncome();
+        double before = home.getBudget();
+
+        home.payBills();
+
+        assertTrue(home.getBudget() < before);
+    }
+
+    @Test
+    void homeRemovedIfCannotPay() {
+        SovietVille.City city = new SovietVille.City();
+
+        city.processCommand("YoungSingle(5)");
+        city.payIncomes();
+        city.processCommand("bills");
+
+        assertEquals(0, city.getTotalPopulation());
+    }
+}
