@@ -1,4 +1,3 @@
-SovietVille
 The city of SovietVille is very strange and people there are still living in the socialist era, so they don't want to change anything. An ordinary home in SovietVille consists of fixed things depending on certain conditions.
 
 A young couple's home has
