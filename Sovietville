@@ -2,10 +2,6 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// =======================================================
-// ========================== MAIN =======================
-// =======================================================
-
 public class Main {
 
     public static void main(String[] args) {
@@ -15,10 +11,6 @@ public class Main {
         System.out.println("BREAKPOINT: Exiting Main");
     }
 }
-
-// =======================================================
-// ========================= ENGINE ======================
-// =======================================================
 
 class Engine {
 
@@ -62,18 +54,12 @@ class Engine {
     }
 }
 
-// =======================================================
-// ====================== SOVIETVILLE ====================
-// =======================================================
-
 class SovietVille {
 
     static final double FRIDGE_COST = 1.5;
     static final double STOVE_COST = 1.2;
     static final double TV_COST = 1.0;
     static final double COMPUTER_COST = 0.7;
-
-    // ========================== CITY ==========================
 
     static class City {
 
@@ -121,7 +107,7 @@ class SovietVille {
             }
         }
 
-        // ================= PARSING =================
+        // PARSING
 
         private YoungCouple parseYoungCouple(String input) {
             double[] values = extractDoubles(input, 2);
@@ -207,7 +193,7 @@ class SovietVille {
             return result;
         }
 
-        // ================= LOGIC =================
+        // PROGRAM LOGIC 
 
         public void payIncomes() {
             System.out.println("BREAKPOINT: Paying incomes to all homes");
@@ -236,7 +222,6 @@ class SovietVille {
         }
     }
 
-    // ========================== HOME ==========================
 
     static abstract class Home {
 
@@ -277,7 +262,7 @@ class SovietVille {
         abstract int getPopulation();
     }
 
-    // ================= HOME TYPES =================
+    // HOME TYPES
 
     static class YoungCouple extends Home {
         public YoungCouple(double s1, double s2) {
@@ -383,9 +368,7 @@ class SovietVille {
     }
 }
 
-// =======================================================
-// ======================= UNIT TESTS ====================
-// =======================================================
+//UNIT TESTS
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
