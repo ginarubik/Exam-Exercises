@@ -9,7 +9,7 @@ public class Main {
     }
 }
 
-/* ========================= ENGINE ========================= */
+// Engine Center
 
 class Engine {
 
@@ -49,7 +49,7 @@ class Engine {
     }
 }
 
-/* ========================= COMMAND PATTERN ========================= */
+// Pattern
 
 interface Command {
     void execute(SovietVille.City city);
@@ -91,7 +91,7 @@ class BillsCommand implements Command {
     }
 }
 
-/* ========================= PARSER ========================= */
+// Parser
 
 class CommandParser {
 
@@ -192,7 +192,7 @@ class CommandParser {
     }
 }
 
-/* ========================= DOMAIN ========================= */
+// Domain
 
 class SovietVille {
 
@@ -201,7 +201,7 @@ class SovietVille {
     static final double TV_COST = 1.0;
     static final double COMPUTER_COST = 0.7;
 
-    /* ---------- CITY ---------- */
+    // City
 
     static class City {
 
@@ -241,7 +241,7 @@ class SovietVille {
         }
     }
 
-    /* ---------- HOME BASE ---------- */
+    // Home Base
 
     static abstract class Home {
 
@@ -279,7 +279,7 @@ class SovietVille {
         abstract int getPopulation();
     }
 
-    /* ---------- HOME TYPES ---------- */
+    // Home Types
 
     static class YoungSingle extends Home {
         public YoungSingle(double salary) {
