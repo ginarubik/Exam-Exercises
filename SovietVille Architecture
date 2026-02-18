@@ -1,0 +1,327 @@
+SovietVille Simulation
+
+SovietVille is a console-based Java simulation of a small city that manages different types of homes and their financial behavior.
+
+Each home:
+
+* Has income
+* Has monthly expenses (consumption)
+* Receives income periodically
+* Pays monthly bills
+* Gets removed from the city if it cannot afford its bills
+
+The system demonstrates strong Object-Oriented Programming (OOP) principles and uses the Command Pattern to handle user input cleanly and extensibly.
+
+Architecture Overview
+
+The program is divided into four main layers:
+
+1. Main (Entry Point)
+2. Engine (Program Controller)
+3. Command Layer (Command Pattern)
+4. Domain Layer (City, Home, Child)
+
+Each layer has a clear and separate responsibility.
+
+# 1. Main Class
+
+The `Main` class is the entry point of the application.
+
+It creates an instance of `Engine` and calls its `run()` method.
+
+Responsibility:
+
+* Start the application
+* Nothing else
+
+This follows the Single Responsibility Principle.
+
+---
+
+# 2. Engine (Controller Layer)
+
+The `Engine` class controls the program flow.
+
+Responsibilities:
+
+* Read user input from the console
+* Parse commands using `CommandParser`
+* Execute commands
+* Track when incomes should be paid
+* Stop execution when the user types `quit`
+
+Income Rule:
+
+* Every 4 home-adding commands, the city pays income to all homes.
+* Commands like `status` and `bills` do NOT trigger income counting.
+
+The Engine does NOT:
+
+* Parse raw input itself
+* Calculate financial logic
+* Manage homes directly
+
+This keeps it clean and maintainable.
+
+---
+
+# 3. Command Pattern
+
+Instead of using large `if-else` or `switch` blocks inside the Engine, the program uses the Command Pattern.
+
+## Command Interface
+
+Every command implements:
+
+* `execute(City city)`
+* `triggersIncome()` (default false)
+
+This allows each command to:
+
+* Define its own behavior
+* Decide whether it should count toward the income cycle
+
+## Command Types
+
+### AddHomeCommand
+
+* Adds a new home to the city
+* Triggers income counting
+
+### StatusCommand
+
+* Prints total monthly consumption of all homes
+* Does not trigger income
+
+### BillsCommand
+
+* Makes all homes attempt to pay bills
+* Removes homes that cannot afford them
+
+This design makes the system:
+
+* Open for extension
+* Closed for modification
+* Easy to add new commands
+
+---
+
+# 4. CommandParser
+
+The `CommandParser` converts raw user input into Command objects.
+
+Example inputs:
+
+* YoungSingle(1000)
+* OldCouple(500, 600)
+* YoungCoupleWithChildren(1000, 1200) Child(200, 50, 30)
+* status
+* bills
+
+The parser:
+
+* Extracts numbers from input
+* Validates parameters
+* Creates the correct Home object
+* Wraps it inside the appropriate Command
+
+This keeps parsing logic separate from business logic.
+
+---
+
+# 5. Domain Layer (Business Logic)
+
+The `SovietVille` class contains all domain-related classes:
+
+* City
+* Home (abstract)
+* Home types
+* Child
+
+This layer contains the actual business rules.
+
+---
+
+# 5.1 City
+
+The `City` class manages all homes.
+
+Responsibilities:
+
+* Store homes in a list
+* Add homes
+* Pay incomes
+* Process bills
+* Remove bankrupt homes
+* Calculate total consumption
+* Calculate total population
+
+Important behavior:
+If a home cannot pay its monthly bills, it is removed from the city.
+
+---
+
+# 5.2 Home (Abstract Base Class)
+
+`Home` is the base class for all home types.
+
+Common properties:
+
+* Monthly income
+* Current budget
+* Number of rooms
+* Cost per room
+
+Common methods:
+
+* `receiveIncome()` → Adds income to budget
+* `payBills()` → Deducts monthly consumption if possible
+* `getRoomsCost()` → Calculates room expenses
+
+Abstract methods:
+
+* `getMonthlyConsumption()`
+* `getPopulation()`
+
+Each home type implements these differently.
+
+This demonstrates polymorphism.
+
+---
+
+# 5.3 Home Types
+
+## YoungSingle
+
+* 1 room
+* 1 computer
+* Population: 1
+
+## OldSingle
+
+* 1 room
+* 1 stove
+* Population: 1
+
+## YoungCouple
+
+* 2 rooms
+* TV
+* Fridge
+* 2 computers
+* Population: 2
+
+## OldCouple
+
+* 3 rooms
+* TV
+* Fridge
+* Stove
+* Population: 2
+
+## YoungCoupleWithChildren
+
+* 2 rooms
+* TV
+* Fridge
+* 2 computers
+* Additional cost for each child
+* Population: 2 + number of children
+
+Each type overrides `getMonthlyConsumption()` and `getPopulation()`.
+
+---
+
+# 5.4 Child
+
+A `Child` object stores:
+
+* Food cost
+* Toys cost (sum of toy values)
+
+Monthly child cost:
+food + toys
+
+Used only inside `YoungCoupleWithChildren`.
+
+---
+
+# Program Flow Example
+
+1. User types:
+   YoungSingle(1000)
+
+2. Parser creates:
+   AddHomeCommand(YoungSingle)
+
+3. Engine executes command:
+   City.addHome(home)
+
+4. After 4 added homes:
+   City.payIncomes()
+
+5. User types:
+   bills
+
+6. Each home:
+
+   * Tries to pay monthly consumption
+   * Is removed if budget is insufficient
+
+7. User types:
+   quit
+
+8. Program prints total population and exits.
+
+---
+
+# OOP Principles Demonstrated
+
+Encapsulation
+All fields are private and accessed through methods.
+
+Abstraction
+Home is abstract and defines shared structure.
+
+Polymorphism
+Each home calculates its consumption differently.
+
+Single Responsibility Principle
+
+* Engine controls flow
+* Parser handles parsing
+* City manages homes
+* Home handles financial logic
+
+Open/Closed Principle
+New home types or commands can be added without modifying existing logic.
+
+Command Pattern
+Encapsulates actions as objects instead of conditionals.
+
+---
+
+# Why This Design Is Strong
+
+* Clean separation of concerns
+* Extensible command system
+* Clear financial logic
+* Easy to maintain
+* Suitable for exam or interview discussion
+* Demonstrates real OOP understanding
+
+---
+
+# Conclusion
+
+SovietVille is a modular, object-oriented console application that simulates financial behavior of households inside a city.
+
+It showcases:
+
+* Proper layering
+* Command Pattern usage
+* Polymorphism
+* Encapsulation
+* Clean and maintainable architecture
+
+This makes it a solid academic and professional-level OOP implementation.
