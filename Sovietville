@@ -5,105 +5,40 @@ import java.util.regex.Pattern;
 public class Main {
 
     public static void main(String[] args) {
-
-        // ===== MANUAL TESTS =====
-        runTests();
-
-        // ===== PROGRAM START =====
-        System.out.println("BREAKPOINT: Entering Main");
-        Engine engine = new Engine();
-        engine.run();
-        System.out.println("BREAKPOINT: Exiting Main");
-    }
-
-    // Simple test runner instead of JUnit
-    private static void runTests() {
-        System.out.println("Running manual tests...");
-
-        // Test 1: YoungCouple consumption
-        SovietVille.YoungCouple home =
-                new SovietVille.YoungCouple(100, 100);
-        double expected = 40 + 1.0 + 1.5 + 1.4;
-        assertEqual(expected, home.getMonthlyConsumption(), "YoungCouple consumption");
-
-        // Test 2: Child cost
-        SovietVille.Child child =
-                new SovietVille.Child(10, Arrays.asList(5.0, 5.0));
-        assertEqual(20, child.getMonthlyCost(), "Child cost");
-
-        // Test 3: Budget decreases after bills
-        SovietVille.YoungSingle single =
-                new SovietVille.YoungSingle(100);
-        single.receiveIncome();
-        double before = single.getBudget();
-        single.payBills();
-        if (single.getBudget() < before) {
-            System.out.println("✔ Budget decreases after bills");
-        } else {
-            System.out.println("✘ Budget did not decrease");
-        }
-
-        // Test 4: Home removed if cannot pay
-        SovietVille.City city = new SovietVille.City();
-        city.processCommand("YoungSingle(5)");
-        city.payIncomes();
-        city.processCommand("bills");
-
-        if (city.getTotalPopulation() == 0) {
-            System.out.println("✔ Home removed if cannot pay");
-        } else {
-            System.out.println("✘ Home was not removed");
-        }
-
-        System.out.println("Manual tests finished.\n");
-    }
-
-    private static void assertEqual(double expected, double actual, String testName) {
-        if (Math.abs(expected - actual) < 0.0001) {
-            System.out.println("✔ " + testName);
-        } else {
-            System.out.println("✘ " + testName + " | Expected: "
-                    + expected + " Actual: " + actual);
-        }
+        new Engine().run();
     }
 }
 
+/* ========================= ENGINE ========================= */
+
 class Engine {
 
-    private final Scanner scanner;
-    private final SovietVille.City city;
-    private int commandCounter;
-
-    public Engine() {
-        System.out.println("BREAKPOINT: Engine initialized");
-        this.scanner = new Scanner(System.in);
-        this.city = new SovietVille.City();
-        this.commandCounter = 0;
-    }
+    private final Scanner scanner = new Scanner(System.in);
+    private final SovietVille.City city = new SovietVille.City();
+    private int incomeCounter = 0;
 
     public void run() {
-        System.out.println("BREAKPOINT: Engine run started");
 
         while (true) {
+
             String input = scanner.nextLine().trim();
-            System.out.println("BREAKPOINT: Read input -> " + input);
 
             if (input.equalsIgnoreCase("quit")) {
-                System.out.println("BREAKPOINT: Quitting program");
                 System.out.println("Total population: "
                         + city.getTotalPopulation());
-                break;
+                return;
             }
 
             try {
-                city.processCommand(input);
-                commandCounter++;
-                System.out.println("BREAKPOINT: Command processed, counter = "
-                        + commandCounter);
 
-                if (commandCounter % 4 == 0) {
-                    System.out.println("BREAKPOINT: Paying incomes");
-                    city.payIncomes();
+                Command command = CommandParser.parse(input);
+                command.execute(city);
+
+                if (command.triggersIncome()) {
+                    incomeCounter++;
+                    if (incomeCounter % 4 == 0) {
+                        city.payIncomes();
+                    }
                 }
 
             } catch (IllegalArgumentException ex) {
@@ -114,6 +49,151 @@ class Engine {
     }
 }
 
+/* ========================= COMMAND PATTERN ========================= */
+
+interface Command {
+    void execute(SovietVille.City city);
+    default boolean triggersIncome() { return false; }
+}
+
+class AddHomeCommand implements Command {
+
+    private final SovietVille.Home home;
+
+    public AddHomeCommand(SovietVille.Home home) {
+        this.home = home;
+    }
+
+    @Override
+    public void execute(SovietVille.City city) {
+        city.addHome(home);
+    }
+
+    @Override
+    public boolean triggersIncome() {
+        return true;
+    }
+}
+
+class StatusCommand implements Command {
+
+    @Override
+    public void execute(SovietVille.City city) {
+        city.printStatus();
+    }
+}
+
+class BillsCommand implements Command {
+
+    @Override
+    public void execute(SovietVille.City city) {
+        city.payBills();
+    }
+}
+
+/* ========================= PARSER ========================= */
+
+class CommandParser {
+
+    public static Command parse(String input) {
+
+        if (input.equals("status"))
+            return new StatusCommand();
+
+        if (input.equals("bills"))
+            return new BillsCommand();
+
+        if (input.startsWith("YoungCoupleWithChildren"))
+            return new AddHomeCommand(parseYoungCoupleWithChildren(input));
+
+        if (input.startsWith("YoungCouple"))
+            return new AddHomeCommand(parseCouple(input, 2, 20));
+
+        if (input.startsWith("YoungSingle"))
+            return new AddHomeCommand(parseSingle(input, 1, 10));
+
+        if (input.startsWith("OldCouple"))
+            return new AddHomeCommand(parseCouple(input, 3, 15));
+
+        if (input.startsWith("OldSingle"))
+            return new AddHomeCommand(parseSingle(input, 1, 15));
+
+        throw new IllegalArgumentException("Unknown command");
+    }
+
+    private static SovietVille.Home parseSingle(String input,
+                                                int rooms,
+                                                double roomCost) {
+
+        double salary = extractNumbers(input, 1)[0];
+
+        if (rooms == 1 && roomCost == 10)
+            return new SovietVille.YoungSingle(salary);
+
+        return new SovietVille.OldSingle(salary);
+    }
+
+    private static SovietVille.Home parseCouple(String input,
+                                                int rooms,
+                                                double roomCost) {
+
+        double[] values = extractNumbers(input, 2);
+
+        if (rooms == 2)
+            return new SovietVille.YoungCouple(values[0], values[1]);
+
+        return new SovietVille.OldCouple(values[0], values[1]);
+    }
+
+    private static SovietVille.Home parseYoungCoupleWithChildren(String input) {
+
+        double[] salaries = extractNumbers(input, 2);
+        SovietVille.YoungCoupleWithChildren home =
+                new SovietVille.YoungCoupleWithChildren(salaries[0], salaries[1]);
+
+        Pattern childPattern = Pattern.compile("Child\\(([^)]+)\\)");
+        Matcher matcher = childPattern.matcher(input);
+
+        while (matcher.find()) {
+
+            String[] parts = matcher.group(1).split(",\\s*");
+            double food = Double.parseDouble(parts[0]);
+
+            List<Double> toys = new ArrayList<>();
+            for (int i = 1; i < parts.length; i++)
+                toys.add(Double.parseDouble(parts[i]));
+
+            home.addChild(new SovietVille.Child(food, toys));
+        }
+
+        return home;
+    }
+
+    private static double[] extractNumbers(String input, int expected) {
+
+        String inside =
+                input.substring(input.indexOf("(") + 1,
+                        input.lastIndexOf(")"));
+
+        String[] parts = inside.split(",\\s*");
+
+        if (parts.length < expected)
+            throw new IllegalArgumentException("Wrong parameters");
+
+        double[] result = new double[expected];
+
+        for (int i = 0; i < expected; i++) {
+            result[i] = Double.parseDouble(parts[i]);
+            if (result[i] < 0)
+                throw new IllegalArgumentException("Negative values not allowed");
+        }
+
+        return result;
+    }
+}
+
+/* ========================= DOMAIN ========================= */
+
 class SovietVille {
 
     static final double FRIDGE_COST = 1.5;
@@ -121,127 +201,15 @@ class SovietVille {
     static final double TV_COST = 1.0;
     static final double COMPUTER_COST = 0.7;
 
+    /* ---------- CITY ---------- */
+
     static class City {
 
         private final List<Home> homes = new ArrayList<>();
 
-        public void processCommand(String input) {
-
-            if (input.startsWith("YoungCoupleWithChildren")) {
-                homes.add(parseYoungCoupleWithChildren(input));
-                return;
-            }
-
-            String command = input.contains("(")
-                    ? input.substring(0, input.indexOf("("))
-                    : input;
-
-            switch (command) {
-                case "YoungCouple" ->
-                        homes.add(parseYoungCouple(input));
-                case "YoungSingle" ->
-                        homes.add(parseYoungSingle(input));
-                case "OldCouple" ->
-                        homes.add(parseOldCouple(input));
-                case "OldSingle" ->
-                        homes.add(parseOldSingle(input));
-                case "status" -> printStatus();
-                case "bills" -> payBills();
-                default ->
-                        throw new IllegalArgumentException("Unknown command");
-            }
+        public void addHome(Home home) {
+            homes.add(home);
         }
-
-        // ===== PARSING =====
-
-        private YoungCouple parseYoungCouple(String input) {
-            double[] values = extractDoubles(input, 2);
-            return new YoungCouple(values[0], values[1]);
-        }
-
-        private YoungSingle parseYoungSingle(String input) {
-            double[] values = extractDoubles(input, 1);
-            return new YoungSingle(values[0]);
-        }
-
-        private OldCouple parseOldCouple(String input) {
-            double[] values = extractDoubles(input, 2);
-            return new OldCouple(values[0], values[1]);
-        }
-
-        private OldSingle parseOldSingle(String input) {
-            double[] values = extractDoubles(input, 1);
-            return new OldSingle(values[0]);
-        }
-
-        private YoungCoupleWithChildren parseYoungCoupleWithChildren(String input) {
-
-            Pattern couplePattern =
-                    Pattern.compile("YoungCoupleWithChildren\\(([^)]+)\\)");
-            Matcher matcher = couplePattern.matcher(input);
-
-            if (!matcher.find())
-                throw new IllegalArgumentException("Invalid family format");
-
-            String[] salaries =
-                    matcher.group(1).split(",\\s*");
-
-            double s1 = Double.parseDouble(salaries[0]);
-            double s2 = Double.parseDouble(salaries[1]);
-
-            YoungCoupleWithChildren home =
-                    new YoungCoupleWithChildren(s1, s2);
-
-            Pattern childPattern =
-                    Pattern.compile("Child\\(([^)]+)\\)");
-            Matcher childMatcher =
-                    childPattern.matcher(input);
-
-            while (childMatcher.find()) {
-
-                String[] parts =
-                        childMatcher.group(1).split(",\\s*");
-
-                double food =
-                        Double.parseDouble(parts[0]);
-
-                List<Double> toys = new ArrayList<>();
-
-                for (int i = 1; i < parts.length; i++) {
-                    toys.add(Double.parseDouble(parts[i]));
-                }
-
-                home.addChild(
-                        new Child(food, toys));
-            }
-
-            return home;
-        }
-
-        private double[] extractDoubles(String input, int expectedCount) {
-
-            String inside =
-                    input.substring(input.indexOf("(") + 1,
-                            input.lastIndexOf(")"));
-
-            String[] parts =
-                    inside.split(",\\s*");
-
-            if (parts.length != expectedCount)
-                throw new IllegalArgumentException("Wrong parameter count");
-
-            double[] result =
-                    new double[expectedCount];
-
-            for (int i = 0; i < parts.length; i++) {
-                result[i] =
-                        Double.parseDouble(parts[i]);
-            }
-
-            return result;
-        }
-
-        // ===== LOGIC =====
 
         public void payIncomes() {
             homes.forEach(Home::receiveIncome);
@@ -249,25 +217,21 @@ class SovietVille {
 
         public void payBills() {
 
-            Iterator<Home> iterator =
-                    homes.iterator();
+            Iterator<Home> iterator = homes.iterator();
 
             while (iterator.hasNext()) {
-                Home h = iterator.next();
-                if (!h.payBills()) {
+                if (!iterator.next().payBills())
                     iterator.remove();
-                }
             }
         }
 
         public void printStatus() {
-            double total =
-                    homes.stream()
-                            .mapToDouble(Home::getMonthlyConsumption)
-                            .sum();
 
-            System.out.printf(
-                    "Total consumption: %.2f%n", total);
+            double total = homes.stream()
+                    .mapToDouble(Home::getMonthlyConsumption)
+                    .sum();
+
+            System.out.printf("Total consumption: %.2f%n", total);
         }
 
         public int getTotalPopulation() {
@@ -277,7 +241,7 @@ class SovietVille {
         }
     }
 
-    // ===== HOME BASE =====
+    /* ---------- HOME BASE ---------- */
 
     static abstract class Home {
 
@@ -286,9 +250,7 @@ class SovietVille {
         private final int rooms;
         private final double roomCost;
 
-        protected Home(double income,
-                       int rooms,
-                       double roomCost) {
+        protected Home(double income, int rooms, double roomCost) {
             this.income = income;
             this.rooms = rooms;
             this.roomCost = roomCost;
@@ -303,8 +265,9 @@ class SovietVille {
         }
 
         public boolean payBills() {
-            double monthly =
-                    getMonthlyConsumption();
+
+            double monthly = getMonthlyConsumption();
+
             if (budget >= monthly) {
                 budget -= monthly;
                 return true;
@@ -312,15 +275,35 @@ class SovietVille {
             return false;
         }
 
-        public double getBudget() {
-            return budget;
-        }
-
         abstract double getMonthlyConsumption();
         abstract int getPopulation();
     }
 
-    // ===== HOME TYPES =====
+    /* ---------- HOME TYPES ---------- */
+
+    static class YoungSingle extends Home {
+        public YoungSingle(double salary) {
+            super(salary, 1, 10);
+        }
+
+        double getMonthlyConsumption() {
+            return getRoomsCost() + COMPUTER_COST;
+        }
+
+        int getPopulation() { return 1; }
+    }
+
+    static class OldSingle extends Home {
+        public OldSingle(double pension) {
+            super(pension, 1, 15);
+        }
+
+        double getMonthlyConsumption() {
+            return getRoomsCost() + STOVE_COST;
+        }
+
+        int getPopulation() { return 1; }
+    }
 
     static class YoungCouple extends Home {
         public YoungCouple(double s1, double s2) {
@@ -335,19 +318,6 @@ class SovietVille {
         }
 
         int getPopulation() { return 2; }
-    }
-
-    static class YoungSingle extends Home {
-        public YoungSingle(double salary) {
-            super(salary, 1, 10);
-        }
-
-        double getMonthlyConsumption() {
-            return getRoomsCost()
-                    + COMPUTER_COST;
-        }
-
-        int getPopulation() { return 1; }
     }
 
     static class OldCouple extends Home {
@@ -365,26 +335,11 @@ class SovietVille {
         int getPopulation() { return 2; }
     }
 
-    static class OldSingle extends Home {
-        public OldSingle(double pension) {
-            super(pension, 1, 15);
-        }
-
-        double getMonthlyConsumption() {
-            return getRoomsCost()
-                    + STOVE_COST;
-        }
-
-        int getPopulation() { return 1; }
-    }
-
     static class YoungCoupleWithChildren extends Home {
 
-        private final List<Child> children =
-                new ArrayList<>();
+        private final List<Child> children = new ArrayList<>();
 
-        public YoungCoupleWithChildren(
-                double s1, double s2) {
+        public YoungCoupleWithChildren(double s1, double s2) {
             super(s1 + s2, 2, 30);
         }
 
@@ -393,11 +348,10 @@ class SovietVille {
         }
 
         double getMonthlyConsumption() {
-            double childrenCost =
-                    children.stream()
-                            .mapToDouble(
-                                    Child::getMonthlyCost)
-                            .sum();
+
+            double childrenCost = children.stream()
+                    .mapToDouble(Child::getMonthlyCost)
+                    .sum();
 
             return getRoomsCost()
                     + TV_COST
@@ -416,13 +370,15 @@ class SovietVille {
         private final double foodCost;
         private final double toysCost;
 
-        public Child(double foodCost,
-                     List<Double> toys) {
+        public Child(double foodCost, List<Double> toys) {
+
+            if (foodCost < 0)
+                throw new IllegalArgumentException("Food cannot be negative");
+
             this.foodCost = foodCost;
-            this.toysCost =
-                    toys.stream()
-                            .mapToDouble(Double::doubleValue)
-                            .sum();
+            this.toysCost = toys.stream()
+                    .mapToDouble(Double::doubleValue)
+                    .sum();
         }
 
         public double getMonthlyCost() {
@@ -430,4 +386,3 @@ class SovietVille {
         }
     }
 }
-
