@@ -1,0 +1,236 @@
+import java.util.ArrayList;
+import java.util.List;
+
+public class CasinoGame {
+
+    // ========================= MAIN =========================
+    public static void main(String[] args) {
+
+        System.out.println("=== MAIN DEMO ===");
+
+        Table table = new Table();
+
+        Player p1 = new Beginner();
+        Player p2 = new Robot();
+        Player p3 = new Beginner();
+
+        table.addPlayer(p1);
+        table.addPlayer(p2);
+        table.addPlayer(p3);
+
+        table.newGame();
+
+        try {
+            table.processRound();
+            table.processRound();
+            table.processRound();
+        } catch (NoPlayerException e) {
+            System.out.println(e.getMessage());
+        }
+
+        // Optional finalize demo
+        table = null;
+        System.gc();
+
+        System.out.println("\n=== RUNNING TESTS ===");
+        runTests();
+        System.out.println("All tests passed.");
+    }
+
+    // ========================= TESTS =========================
+    private static void runTests() {
+        testAddPlayer();
+        testBeginnerStrategy();
+        testRobotStrategy();
+        testNoPlayerException();
+        testRoundNumber();
+    }
+
+    private static void testAddPlayer() {
+        Table table = new Table();
+        Player p = new Beginner();
+        table.addPlayer(p);
+        assert p.getTable() == table : "Player should reference table";
+    }
+
+    private static void testBeginnerStrategy() {
+        Table table = new Table();
+        Player beginner = new Beginner();
+        table.addPlayer(beginner);
+        table.newGame();
+
+        try {
+            table.processRound(); // round 1 (odd) -> pass
+            assert table.getStake() == 0 : "Beginner should pass on odd round";
+
+            table.processRound(); // round 2 (even) -> raise
+            assert table.getStake() == 1 : "Beginner should raise on even round";
+
+        } catch (NoPlayerException e) {
+            assert false : "Should not throw exception";
+        }
+    }
+
+    private static void testRobotStrategy() {
+        Table table = new Table();
+        Player robot = new Robot();
+        table.addPlayer(robot);
+        table.newGame();
+
+        try {
+            table.processRound();
+            table.processRound();
+            assert table.getStake() == 0 : "Robot should never raise";
+        } catch (NoPlayerException e) {
+            assert false;
+        }
+    }
+
+    private static void testNoPlayerException() {
+        Table table = new Table();
+        table.newGame();
+
+        boolean thrown = false;
+
+        try {
+            table.processRound();
+        } catch (NoPlayerException e) {
+            thrown = true;
+        }
+
+        assert thrown : "NoPlayerException should be thrown";
+    }
+
+    private static void testRoundNumber() {
+        Table table = new Table();
+        Player p = new Robot();
+        table.addPlayer(p);
+        table.newGame();
+
+        try {
+            table.processRound();
+            table.processRound();
+        } catch (NoPlayerException e) {
+            assert false;
+        }
+
+        assert table.getRoundNumber() == 2 : "Round number should be 2";
+    }
+
+    // ========================= TABLE =========================
+    static class Table {
+
+        private int stake;
+        private int roundNumber;
+        private List<Player> players = new ArrayList<>();
+
+        public void addPlayer(Player player) {
+            if (players.size() >= 10) {
+                System.out.println("Table full (max 10 players).");
+                return;
+            }
+            players.add(player);
+            player.setTable(this);
+        }
+
+        public void newGame() {
+            stake = 0;
+            roundNumber = 0;
+        }
+
+        public void processRound() throws NoPlayerException {
+            if (players.isEmpty()) {
+                throw new NoPlayerException("No players at the table!");
+            }
+
+            roundNumber++;
+
+            for (Player p : players) {
+                p.makeMove();
+            }
+
+            System.out.println("End of round " + roundNumber +
+                    ", Stake = " + stake);
+        }
+
+        public int getRoundNumber() {
+            return roundNumber;
+        }
+
+        public void raise(int amount) {
+            stake += amount;
+        }
+
+        public int getStake() {
+            return stake;
+        }
+    }
+
+    // ========================= PLAYER =========================
+    static abstract class Player {
+
+        private static int counter = 1;
+        private final int id;
+        private Table table;
+
+        public Player() {
+            this.id = counter++;
+        }
+
+        public abstract void makeMove();
+
+        public Table getTable() {
+            return table;
+        }
+
+        public void setTable(Table table) {
+            this.table = table;
+        }
+
+        @Override
+        public String toString() {
+            return getClass().getSimpleName() + " " + id;
+        }
+
+        @Override
+        protected void finalize() throws Throwable {
+            System.out.println("Finalizing Player ID: " + id +
+                    " -> " + toString());
+            super.finalize();
+        }
+    }
+
+    // ========================= BEGINNER =========================
+    static class Beginner extends Player {
+
+        @Override
+        public void makeMove() {
+            int round = getTable().getRoundNumber();
+            System.out.println(toString() +
+                    " making move in round " + round);
+
+            if (round % 2 == 0) {
+                getTable().raise(1);
+            }
+        }
+    }
+
+    // ========================= ROBOT =========================
+    static class Robot extends Player {
+
+        @Override
+        public void makeMove() {
+            int round = getTable().getRoundNumber();
+            System.out.println(toString() +
+                    " making move in round " + round);
+            // always pass
+        }
+    }
+
+    // ========================= EXCEPTION =========================
+    static class NoPlayerException extends Exception {
+        public NoPlayerException(String message) {
+            super(message);
+        }
+    }
+}
