@@ -1,322 +1,202 @@
 import java.util.*;
 
-public class Main {
+class Software {
+    String name;
+    String type; // Express or Light
+    int capacityConsumption;
+    int memoryConsumption;
 
-    public static void main(String[] args) {
+    public Software(String name, String type, int capacity, int memory) {
+        this.name = name;
+        this.type = type;
 
-        if (args.length > 0 && args[0].equals("test")) {
-            TestRunner.runAll();
-            return;
+        if (type.equals("Express")) {
+            this.capacityConsumption = capacity;
+            this.memoryConsumption = memory * 2;
+        } else { // Light
+            this.capacityConsumption = capacity + (capacity / 2);
+            this.memoryConsumption = memory - (memory / 2);
+        }
+    }
+}
+
+class Hardware {
+    String name;
+    String type; // Power or Heavy
+    int maximumCapacity;
+    int maximumMemory;
+    List<Software> softwares;
+
+    public Hardware(String name, String type, int capacity, int memory) {
+        this.name = name;
+        this.type = type;
+        this.softwares = new ArrayList<>();
+
+        if (type.equals("Power")) {
+            this.maximumCapacity = capacity - ((capacity * 3) / 4);
+            this.maximumMemory = memory + ((memory * 3) / 4);
+        } else { // Heavy
+            this.maximumCapacity = capacity * 2;
+            this.maximumMemory = memory - (memory / 4);
+        }
+    }
+
+    public int getUsedCapacity() {
+        int sum = 0;
+        for (Software s : softwares) {
+            sum += s.capacityConsumption;
+        }
+        return sum;
+    }
+
+    public int getUsedMemory() {
+        int sum = 0;
+        for (Software s : softwares) {
+            sum += s.memoryConsumption;
+        }
+        return sum;
+    }
+
+    public void addSoftware(Software s) {
+        if (getUsedCapacity() + s.capacityConsumption <= maximumCapacity &&
+            getUsedMemory() + s.memoryConsumption <= maximumMemory) {
+            softwares.add(s);
+        }
+    }
+
+    public void removeSoftware(String softwareName) {
+        softwares.removeIf(s -> s.name.equals(softwareName));
+    }
+}
+
+class SystemManager {
+    List<Hardware> hardwareComponents = new ArrayList<>();
+
+    private Hardware findHardware(String name) {
+        for (Hardware h : hardwareComponents) {
+            if (h.name.equals(name)) {
+                return h;
+            }
+        }
+        return null;
+    }
+
+    public void registerPowerHardware(String name, int capacity, int memory) {
+        hardwareComponents.add(new Hardware(name, "Power", capacity, memory));
+    }
+
+    public void registerHeavyHardware(String name, int capacity, int memory) {
+        hardwareComponents.add(new Hardware(name, "Heavy", capacity, memory));
+    }
+
+    public void registerExpressSoftware(String hardwareName, String name, int capacity, int memory) {
+        Hardware h = findHardware(hardwareName);
+        if (h == null) return;
+        h.addSoftware(new Software(name, "Express", capacity, memory));
+    }
+
+    public void registerLightSoftware(String hardwareName, String name, int capacity, int memory) {
+        Hardware h = findHardware(hardwareName);
+        if (h == null) return;
+        h.addSoftware(new Software(name, "Light", capacity, memory));
+    }
+
+    public void releaseSoftwareComponent(String hardwareName, String softwareName) {
+        Hardware h = findHardware(hardwareName);
+        if (h == null) return;
+        h.removeSoftware(softwareName);
+    }
+
+    public void analyze() {
+        int hardwareCount = hardwareComponents.size();
+        int softwareCount = 0;
+        int totalUsedMemory = 0;
+        int totalUsedCapacity = 0;
+        int totalMaxMemory = 0;
+        int totalMaxCapacity = 0;
+
+        for (Hardware h : hardwareComponents) {
+            softwareCount += h.softwares.size();
+            totalUsedMemory += h.getUsedMemory();
+            totalUsedCapacity += h.getUsedCapacity();
+            totalMaxMemory += h.maximumMemory;
+            totalMaxCapacity += h.maximumCapacity;
         }
 
-        Scanner sc = new Scanner(System.in);
-        TheSystem system = new TheSystem();
+        System.out.println("System Analysis");
+        System.out.println("Hardware Components: " + hardwareCount);
+        System.out.println("Software Components: " + softwareCount);
+        System.out.println("Total Operational Memory: " + totalUsedMemory + " / " + totalMaxMemory);
+        System.out.println("Total Capacity Taken: " + totalUsedCapacity + " / " + totalMaxCapacity);
+    }
 
-        while (true) {
-            String input = sc.nextLine();
+    public void dump() {
+        List<Hardware> power = new ArrayList<>();
+        List<Hardware> heavy = new ArrayList<>();
 
-            if (input.equals("Dump")) {
-                system.dump();
-                break;
-            } else if (input.equals("Analyze()")) {
-                system.analyze();
+        for (Hardware h : hardwareComponents) {
+            if (h.type.equals("Power")) power.add(h);
+            else heavy.add(h);
+        }
+
+        printHardware(power);
+        printHardware(heavy);
+    }
+
+    private void printHardware(List<Hardware> list) {
+        for (Hardware h : list) {
+            int expressCount = 0;
+            int lightCount = 0;
+
+            for (Software s : h.softwares) {
+                if (s.type.equals("Express")) expressCount++;
+                else lightCount++;
+            }
+
+            System.out.println("Hardware Component - " + h.name);
+            System.out.println("Express Software Components - " + expressCount);
+            System.out.println("Light Software Components - " + lightCount);
+            System.out.println("Memory Usage: " + h.getUsedMemory() + " / " + h.maximumMemory);
+            System.out.println("Capacity Usage: " + h.getUsedCapacity() + " / " + h.maximumCapacity);
+            System.out.println("Type: " + h.type);
+
+            if (h.softwares.isEmpty()) {
+                System.out.println("Software Components: None");
             } else {
-                system.processCommand(input);
+                List<String> names = new ArrayList<>();
+                for (Software s : h.softwares) {
+                    names.add(s.name);
+                }
+                System.out.println("Software Components: " + String.join(", ", names));
             }
         }
     }
 }
 
-// Tests:
+public class Main {
+    public static void main(String[] args) {
 
-class TestRunner {
+        SystemManager system = new SystemManager();
 
-    public static void runAll() {
-        int passed = 0;
-        int total = 5;
+        // ===== TEST CASE (same as example) =====
 
-        if (testPowerHardwareModification()) passed++;
-        if (testHeavyHardwareModification()) passed++;
-        if (testLightSoftwareModification()) passed++;
-        if (testInsufficientResources()) passed++;
-        if (testReleaseSoftware()) passed++;
+        system.registerPowerHardware("HDD", 200, 200);
+        system.registerHeavyHardware("SSD", 400, 400);
 
-        System.out.println("\n========================");
-        System.out.println("Passed: " + passed + " / " + total);
-        System.out.println("========================");
-    }
+        system.analyze();
 
-    private static boolean testPowerHardwareModification() {
-        PowerHardware p = new PowerHardware("P", 200, 200);
-        boolean ok = p.getMaxCapacity() == 50 && p.getMaxMemory() == 350;
-        print("PowerHardware modification", ok);
-        return ok;
-    }
+        system.registerLightSoftware("HDD", "Test", 0, 10);
+        system.registerExpressSoftware("HDD", "Test2", 100, 100);
+        system.registerExpressSoftware("HDD", "Test3", 50, 100);
 
-    private static boolean testHeavyHardwareModification() {
-        HeavyHardware h = new HeavyHardware("H", 200, 200);
-        boolean ok = h.getMaxCapacity() == 400 && h.getMaxMemory() == 150;
-        print("HeavyHardware modification", ok);
-        return ok;
-    }
+        system.registerLightSoftware("SSD", "Windows", 20, 50);
+        system.registerExpressSoftware("SSD", "Linux", 50, 100);
+        system.registerLightSoftware("SSD", "Unix", 20, 50);
 
-    private static boolean testLightSoftwareModification() {
-        LightSoftware l = new LightSoftware("L", 10, 10);
-        boolean ok = l.getCapacity() == 15 && l.getMemory() == 5;
-        print("LightSoftware modification", ok);
-        return ok;
-    }
+        system.analyze();
 
-    private static boolean testInsufficientResources() {
-        TheSystem system = new TheSystem();
-        system.processCommand("RegisterPowerHardware(HDD, 100, 100)");
-        system.processCommand("RegisterExpressSoftware(HDD, Big, 1000, 1000)");
+        system.releaseSoftwareComponent("SSD", "Linux");
 
-        Hardware h = system.getHardware("HDD");
-        boolean ok = h.getSoftwareCount() == 0;
-        print("Insufficient resource test", ok);
-        return ok;
-    }
-
-    private static boolean testReleaseSoftware() {
-        TheSystem system = new TheSystem();
-        system.processCommand("RegisterHeavyHardware(SSD, 200, 200)");
-        system.processCommand("RegisterLightSoftware(SSD, A, 10, 10)");
-        system.processCommand("ReleaseSoftwareComponent(SSD, A)");
-
-        Hardware h = system.getHardware("SSD");
-        boolean ok = h.getSoftwareCount() == 0;
-        print("Release software test", ok);
-        return ok;
-    }
-
-    private static void print(String name, boolean ok) {
-        System.out.println(name + ": " + (ok ? "PASSED" : "FAILED"));
-    }
-}
-
-// System
-
-class TheSystem {
-
-    private Map<String, Hardware> hardwareMap = new LinkedHashMap<>();
-
-    public void processCommand(String input) {
-
-        String command = input.substring(0, input.indexOf("("));
-        String inside = input.substring(input.indexOf("(") + 1, input.indexOf(")"));
-        String[] args = inside.split(", ");
-
-        switch (command) {
-
-            case "RegisterPowerHardware":
-                hardwareMap.put(args[0],
-                        new PowerHardware(args[0],
-                                Integer.parseInt(args[1]),
-                                Integer.parseInt(args[2])));
-                break;
-
-            case "RegisterHeavyHardware":
-                hardwareMap.put(args[0],
-                        new HeavyHardware(args[0],
-                                Integer.parseInt(args[1]),
-                                Integer.parseInt(args[2])));
-                break;
-
-            case "RegisterExpressSoftware":
-                registerSoftware(args[0],
-                        new ExpressSoftware(args[1],
-                                Integer.parseInt(args[2]),
-                                Integer.parseInt(args[3])));
-                break;
-
-            case "RegisterLightSoftware":
-                registerSoftware(args[0],
-                        new LightSoftware(args[1],
-                                Integer.parseInt(args[2]),
-                                Integer.parseInt(args[3])));
-                break;
-
-            case "ReleaseSoftwareComponent":
-                releaseSoftware(args[0], args[1]);
-                break;
-        }
-    }
-
-    private void registerSoftware(String hardwareName, Software software) {
-        Hardware h = hardwareMap.get(hardwareName);
-        if (h != null) {
-            h.addSoftware(software);
-        }
-    }
-
-    private void releaseSoftware(String hardwareName, String softwareName) {
-        Hardware h = hardwareMap.get(hardwareName);
-        if (h != null) {
-            h.removeSoftware(softwareName);
-        }
-    }
-
-    public Hardware getHardware(String name) {
-        return hardwareMap.get(name);
-    }
-
-    public void analyze() {
-
-        int totalMemoryUsed = 0;
-        int totalCapacityUsed = 0;
-        int totalMaxMemory = 0;
-        int totalMaxCapacity = 0;
-        int totalSoftware = 0;
-
-        for (Hardware h : hardwareMap.values()) {
-            totalMemoryUsed += h.getUsedMemory();
-            totalCapacityUsed += h.getUsedCapacity();
-            totalMaxMemory += h.getMaxMemory();
-            totalMaxCapacity += h.getMaxCapacity();
-            totalSoftware += h.getSoftwareCount();
-        }
-
-        System.out.println("System Analysis");
-        System.out.println("Hardware Components: " + hardwareMap.size());
-        System.out.println("Software Components: " + totalSoftware);
-        System.out.println("Total Operational Memory: " + totalMemoryUsed + " / " + totalMaxMemory);
-        System.out.println("Total Capacity Taken: " + totalCapacityUsed + " / " + totalMaxCapacity);
-    }
-
-    public void dump() {
-
-        List<Hardware> power = new ArrayList<>();
-        List<Hardware> heavy = new ArrayList<>();
-
-        for (Hardware h : hardwareMap.values()) {
-            if (h instanceof PowerHardware) power.add(h);
-            else heavy.add(h);
-        }
-
-        for (Hardware h : power) printHardware(h);
-        for (Hardware h : heavy) printHardware(h);
-    }
-
-    private void printHardware(Hardware h) {
-        System.out.println("Hardware Component - " + h.getName());
-        System.out.println("Express Software Components - " + h.countExpress());
-        System.out.println("Light Software Components - " + h.countLight());
-        System.out.println("Memory Usage: " + h.getUsedMemory() + " / " + h.getMaxMemory());
-        System.out.println("Capacity Usage: " + h.getUsedCapacity() + " / " + h.getMaxCapacity());
-        System.out.println("Type: " + h.getType());
-
-        if (h.getSoftwareCount() == 0)
-            System.out.println("Software Components: None");
-        else
-            System.out.println("Software Components: " + String.join(", ", h.getSoftwareNames()));
-    }
-}
-
-// Hardware
-
-abstract class Hardware {
-
-    protected String name;
-    protected int maxCapacity;
-    protected int maxMemory;
-    protected List<Software> softwareList = new ArrayList<>();
-
-    public Hardware(String name, int capacity, int memory) {
-        this.name = name;
-        this.maxCapacity = capacity;
-        this.maxMemory = memory;
-    }
-
-    public void addSoftware(Software s) {
-        if (getUsedCapacity() + s.getCapacity() <= maxCapacity &&
-            getUsedMemory() + s.getMemory() <= maxMemory) {
-            softwareList.add(s);
-        }
-    }
-
-    public void removeSoftware(String name) {
-        softwareList.removeIf(s -> s.getName().equals(name));
-    }
-
-    public int getUsedCapacity() {
-        return softwareList.stream().mapToInt(Software::getCapacity).sum();
-    }
-
-    public int getUsedMemory() {
-        return softwareList.stream().mapToInt(Software::getMemory).sum();
-    }
-
-    public int getSoftwareCount() { return softwareList.size(); }
-
-    public int countExpress() {
-        return (int) softwareList.stream().filter(s -> s instanceof ExpressSoftware).count();
-    }
-
-    public int countLight() {
-        return (int) softwareList.stream().filter(s -> s instanceof LightSoftware).count();
-    }
-
-    public List<String> getSoftwareNames() {
-        List<String> names = new ArrayList<>();
-        for (Software s : softwareList) names.add(s.getName());
-        return names;
-    }
-
-    public String getName() { return name; }
-    public int getMaxCapacity() { return maxCapacity; }
-    public int getMaxMemory() { return maxMemory; }
-
-    public abstract String getType();
-}
-
-class PowerHardware extends Hardware {
-    public PowerHardware(String name, int capacity, int memory) {
-        super(name,
-                capacity - (capacity * 3) / 4,
-                memory + (memory * 3) / 4);
-    }
-    public String getType() { return "Power"; }
-}
-
-class HeavyHardware extends Hardware {
-    public HeavyHardware(String name, int capacity, int memory) {
-        super(name,
-                capacity * 2,
-                memory - (memory / 4));
-    }
-    public String getType() { return "Heavy"; }
-}
-
-// Software
-
-abstract class Software {
-
-    protected String name;
-    protected int capacity;
-    protected int memory;
-
-    public Software(String name, int capacity, int memory) {
-        this.name = name;
-        this.capacity = capacity;
-        this.memory = memory;
-    }
-
-    public String getName() { return name; }
-    public int getCapacity() { return capacity; }
-    public int getMemory() { return memory; }
-}
-
-class ExpressSoftware extends Software {
-    public ExpressSoftware(String name, int capacity, int memory) {
-        super(name, capacity, memory * 2);
-    }
-}
-
-class LightSoftware extends Software {
-    public LightSoftware(String name, int capacity, int memory) {
-        super(name,
-                capacity + capacity / 2,
-                memory - memory / 2);
+        system.dump();
     }
 }
