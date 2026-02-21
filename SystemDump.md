@@ -153,4 +153,6 @@ Express Software Components - 0
 Light Software Components - 2
 Memory Usage: 50 / 300
 Capacity Usage: 60 / 800
-Type: Heav
+Type: Heavy
+Software Components: Windows, Unix
+
